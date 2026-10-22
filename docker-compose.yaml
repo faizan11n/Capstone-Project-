@@ -1,0 +1,44 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: capstone-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - capstone_data:/var/lib/mysql
+    networks: [capstone-net]
+
+  backend:
+    build:
+      context: ./app/backend
+      args:
+        APP_VERSION: local
+        GIT_SHA: local
+    container_name: capstone-backend
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      DB_HOST: db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    networks: [capstone-net]
+
+  frontend:
+    build: ./app/frontend
+    container_name: capstone-frontend
+    restart: unless-stopped
+    depends_on: [backend]
+    ports:
+      - "8100:80"
+    networks: [capstone-net]
+
+networks:
+  capstone-net:
+
+volumes:
+  capstone_data:

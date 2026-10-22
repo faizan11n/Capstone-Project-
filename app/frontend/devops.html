@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golden Bun - How this is built</title>
+<style>
+  :root { --bg:#0f1115; --card:#181b22; --line:#2a2f3a; --text:#e8eaf0; --mute:#9aa3b2; --gold:#f4b400; --ok:#3ddc84; --bad:#ff5c5c; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+  .wrap { max-width:980px; margin:0 auto; padding:32px 20px 64px; }
+  a { color:var(--gold); }
+  h1 { font-size:30px; } h1 span { color:var(--gold); }
+  .sub { color:var(--mute); margin:6px 0 28px; }
+  h2 { font-size:14px; letter-spacing:.12em; text-transform:uppercase; color:var(--mute); margin:34px 0 12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+  .stat .k { color:var(--mute); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
+  .stat .v { font-size:22px; font-weight:700; margin-top:4px; word-break:break-all; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:8px; background:var(--mute); }
+  .dot.ok { background:var(--ok); } .dot.bad { background:var(--bad); }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .step { background:#0f1115; border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:14px; }
+  .arrow { color:var(--mute); }
+  .tags { display:flex; flex-wrap:wrap; gap:8px; }
+  .tag { border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:13px; color:var(--text); }
+  ul { padding-left:20px; color:var(--mute); } li { margin:4px 0; } li b { color:var(--text); }
+  .back { display:inline-block; margin-bottom:18px; font-size:14px; text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">&larr; Back to the Golden Bun menu</a>
+  <h1>How <span>Golden Bun</span> is built</h1>
+  <p class="sub">A real app, deployed through a real pipeline. Every box below is live, not a screenshot.</p>
+
+  <h2>Live status</h2>
+  <div class="grid">
+    <div class="card stat"><div class="k">Backend</div><div class="v"><span class="dot" id="dot"></span><span id="health">checking...</span></div></div>
+    <div class="card stat"><div class="k">Build version</div><div class="v" id="version">-</div></div>
+    <div class="card stat"><div class="k">Git commit</div><div class="v" id="sha">-</div></div>
+    <div class="card stat"><div class="k">Served by pod</div><div class="v" id="pod">-</div></div>
+    <div class="card stat"><div class="k">Pod uptime</div><div class="v" id="uptime">-</div></div>
+    <div class="card stat"><div class="k">Orders in database</div><div class="v" id="orders">-</div></div>
+  </div>
+
+  <h2>Delivery pipeline</h2>
+  <div class="card flow">
+    <span class="step">git push</span><span class="arrow">&rarr;</span>
+    <span class="step">GitHub webhook</span><span class="arrow">&rarr;</span>
+    <span class="step">Jenkins build and test</span><span class="arrow">&rarr;</span>
+    <span class="step">Docker Hub image</span><span class="arrow">&rarr;</span>
+    <span class="step">kubectl rolling update</span><span class="arrow">&rarr;</span>
+    <span class="step">Live on k3s</span>
+  </div>
+
+  <h2>Infrastructure</h2>
+  <div class="card flow">
+    <span class="step">Terraform: EC2, SG, Elastic IP</span><span class="arrow">&rarr;</span>
+    <span class="step">Ansible: Docker, k3s</span><span class="arrow">&rarr;</span>
+    <span class="step">Kubernetes: Traefik Ingress</span><span class="arrow">&rarr;</span>
+    <span class="step">nginx frontend</span><span class="arrow">&rarr;</span>
+    <span class="step">Flask API</span><span class="arrow">&rarr;</span>
+    <span class="step">MySQL + PVC</span>
+  </div>
+
+  <h2>Stack</h2>
+  <div class="card tags">
+    <span class="tag">Git and GitHub</span><span class="tag">Docker and Compose</span><span class="tag">Jenkins</span>
+    <span class="tag">Terraform</span><span class="tag">Ansible</span><span class="tag">Kubernetes (k3s)</span>
+    <span class="tag">Ingress</span><span class="tag">Secrets and ConfigMaps</span><span class="tag">PVC</span>
+    <span class="tag">Probes</span><span class="tag">HPA</span><span class="tag">AWS EC2</span>
+    <span class="tag">Flask</span><span class="tag">MySQL</span><span class="tag">nginx</span>
+  </div>
+
+  <h2>What to try</h2>
+  <div class="card">
+    <ul>
+      <li><b>Refresh this page</b> a few times: the pod name changes when more than one replica runs.</li>
+      <li><b>Place an order</b> on the menu page, then come back: the order counter goes up.</li>
+      <li><b>Push a change</b> to GitHub: the build version here changes after Jenkins deploys it, with no downtime.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+function fmt(sec){ const m=Math.floor(sec/60), h=Math.floor(m/60);
+  return h>0 ? h+"h "+(m%60)+"m" : m>0 ? m+"m "+(sec%60)+"s" : sec+"s"; }
+async function load(){
+  try {
+    const h = await (await fetch("/api/health")).json();
+    document.getElementById("health").textContent = h.status;
+    document.getElementById("dot").className = "dot ok";
+  } catch(e) {
+    document.getElementById("health").textContent = "unreachable";
+    document.getElementById("dot").className = "dot bad";
+  }
+  try {
+    const i = await (await fetch("/api/info")).json();
+    document.getElementById("version").textContent = i.version;
+    document.getElementById("sha").textContent = String(i.git_sha).slice(0,7);
+    document.getElementById("pod").textContent = i.pod;
+    document.getElementById("uptime").textContent = fmt(i.uptime_seconds);
+  } catch(e) {}
+  try {
+    const o = await (await fetch("/api/orders")).json();
+    document.getElementById("orders").textContent = o.length >= 20 ? "20+" : o.length;
+  } catch(e) {}
+}
+load(); setInterval(load, 5000);
+</script>
+</body>
+</html>
